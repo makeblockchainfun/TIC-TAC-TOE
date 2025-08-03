@@ -1,1 +1,512 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Blockchain Tic Tac Toe</title>
+    <script src="https://cdn.jsdelivr.net/npm/web3@latest/dist/web3.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+            color: #333;
+        }
+        h2 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 25px;
+        }
+        #status {
+            padding: 15px;
+            text-align: center;
+            font-weight: bold;
+            background: #e9ecef;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #dee2e6;
+            transition: background-color 0.3s;
+        }
+        #status.active {
+            background-color: #d4edda;
+            color: #155724;
+            border-color: #c3e6cb;
+        }
+        #status.opponent {
+            background-color: #fff3cd;
+            color: #856404;
+            border-color: #ffeeba;
+        }
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+            transform: translateY(-2px);
+        }
+        button:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        #withdrawBtn {
+            background-color: #e74c3c;
+        }
+        #withdrawBtn:hover {
+            background-color: #c0392b;
+        }
+        .player-info {
+            display: flex;
+            justify-content: space-around;
+            margin: 25px 0;
+        }
+        .player-box {
+            padding: 15px;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            min-width: 140px;
+            text-align: center;
+            background: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            transition: all 0.3s;
+        }
+        .player-box.active {
+            border-color: #3498db;
+            background-color: #e3f2fd;
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+        }
+        .player-box h3 {
+            margin: 0 0 10px 0;
+            color: #2c3e50;
+        }
+        .symbol {
+            font-weight: bold;
+            font-size: 1.8em;
+            margin: 10px 0;
+        }
+        .symbol.x {
+            color: #e74c3c;
+        }
+        .symbol.o {
+            color: #3498db;
+        }
+        .address {
+            font-family: monospace;
+            font-size: 0.85em;
+            word-break: break-all;
+            color: #7f8c8d;
+        }
+        table {
+            margin: 20px auto;
+            border-collapse: collapse;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        td {
+            width: 80px;
+            height: 80px;
+            text-align: center;
+            font-size: 36px;
+            font-weight: bold;
+            border: 2px solid #dee2e6;
+            cursor: pointer;
+            background: white;
+            transition: all 0.2s;
+        }
+        td:hover:not(.disabled) {
+            background-color: #f8f9fa;
+            transform: scale(1.05);
+        }
+        td.x {
+            color: #e74c3c;
+        }
+        td.o {
+            color: #3498db;
+        }
+        .disabled {
+            cursor: not-allowed;
+            opacity: 0.7;
+            background-color: #f8f9fa;
+        }
+        .game-info {
+            text-align: center;
+            margin-top: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+        .instructions {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 0.9em;
+            color: #7f8c8d;
+        }
+        @media (max-width: 500px) {
+            .player-info {
+                flex-direction: column;
+                gap: 15px;
+            }
+            td {
+                width: 60px;
+                height: 60px;
+                font-size: 28px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h2>Tic Tac Toe on Ethereum</h2>
+    
+    <div id="status">Connecting to wallet...</div>
+    
+    <div class="controls">
+        <button id="startBtn">Start Game (0.001 ETH)</button>
+        <button id="withdrawBtn" style="display:none">Withdraw ETH</button>
+    </div>
+    
+    <div class="player-info">
+        <div id="player1Info" class="player-box">
+            <h3>Player 1</h3>
+            <div class="symbol x">X</div>
+            <div id="player1Addr" class="address">Waiting...</div>
+        </div>
+        <div id="player2Info" class="player-box">
+            <h3>Player 2</h3>
+            <div class="symbol o">O</div>
+            <div id="player2Addr" class="address">Waiting...</div>
+        </div>
+    </div>
+    
+    <table id="board"></table>
+    
+    <div class="game-info">
+        <div id="turnInfo">-</div>
+    </div>
+    
+    <div class="instructions">
+        <p>Connect your Ethereum wallet (MetaMask) to play</p>
+        <p>Make sure you're on the Sepolia test network</p>
+    </div>
+    
+    <script>
+        const contractAddress = '0x28FDcf11531327Fc8ef7ad04B4923Ce877e58E9F';
+        const contractABI = [
+            {
+                "inputs": [],
+                "name": "startGame",
+                "outputs": [],
+                "stateMutability": "payable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {"internalType": "uint8", "name": "x", "type": "uint8"},
+                    {"internalType": "uint8", "name": "y", "type": "uint8"}
+                ],
+                "name": "makeMove",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "getBoard",
+                "outputs": [
+                    {"internalType": "uint8[3][3]", "name": "", "type": "uint8[3][3]"}
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "player1",
+                "outputs": [{"internalType": "address payable", "name": "", "type": "address"}],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "player2",
+                "outputs": [{"internalType": "address payable", "name": "", "type": "address"}],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "currentPlayer",
+                "outputs": [{"internalType": "address", "name": "", "type": "address"}],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "gameStarted",
+                "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "gameOver",
+                "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "withdraw",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            }
+        ];
 
+        let contract;
+        let web3;
+        let playerAccount;
+        let gameInterval;
+        let isPlayer1 = false;
+        let isPlayer2 = false;
+
+        async function init() {
+            if (window.ethereum) {
+                web3 = new Web3(window.ethereum);
+                try {
+                    // Request account access
+                    const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+                    playerAccount = accounts[0];
+                    
+                    // Check network
+                    const chainId = await web3.eth.getChainId();
+                    if (chainId !== 11155111) { // Sepolia chain ID
+                        try {
+                            await ethereum.request({
+                                method: 'wallet_switchEthereumChain',
+                                params: [{ chainId: '0xaa36a7' }] // Sepolia hex
+                            });
+                        } catch (switchError) {
+                            // If network not added, add it
+                            await ethereum.request({
+                                method: 'wallet_addEthereumChain',
+                                params: [{
+                                    chainId: '0xaa36a7',
+                                    chainName: 'Sepolia',
+                                    nativeCurrency: {
+                                        name: 'SepoliaETH',
+                                        symbol: 'ETH',
+                                        decimals: 18
+                                    },
+                                    rpcUrls: ['https://rpc.sepolia.org'],
+                                    blockExplorerUrls: ['https://sepolia.etherscan.io/']
+                                }]
+                            });
+                        }
+                    }
+                    
+                    contract = new web3.eth.Contract(contractABI, contractAddress);
+                    document.getElementById("status").innerText = "Connected to wallet";
+                    
+                    // Setup event listeners
+                    document.getElementById("startBtn").addEventListener("click", startGame);
+                    document.getElementById("withdrawBtn").addEventListener("click", withdraw);
+                    
+                    // Setup game state polling
+                    clearInterval(gameInterval);
+                    gameInterval = setInterval(updateGameStatus, 2000);
+                    
+                    // Initial update
+                    await updateGameStatus();
+                    
+                    // Listen for account changes
+                    ethereum.on('accountsChanged', (accounts) => {
+                        playerAccount = accounts[0];
+                        updateGameStatus();
+                    });
+                    
+                } catch (error) {
+                    document.getElementById("status").innerText = "Error: " + error.message;
+                }
+            } else {
+                document.getElementById("status").innerText = "Install MetaMask to use this dApp";
+            }
+        }
+
+        async function startGame() {
+            try {
+                document.getElementById("status").innerText = "Starting game...";
+                const weiAmount = web3.utils.toWei("0.001", "ether");
+                await contract.methods.startGame().send({ 
+                    from: playerAccount, 
+                    value: weiAmount 
+                });
+                await updateGameStatus();
+            } catch (error) {
+                document.getElementById("status").innerText = "Error: " + error.message;
+            }
+        }
+
+        async function withdraw() {
+            try {
+                document.getElementById("status").innerText = "Withdrawing funds...";
+                await contract.methods.withdraw().send({ from: playerAccount });
+                await updateGameStatus();
+            } catch (error) {
+                document.getElementById("status").innerText = "Withdraw error: " + error.message;
+            }
+        }
+
+        async function updateGameStatus() {
+            if (!contract || !playerAccount) return;
+            
+            try {
+                const gameStarted = await contract.methods.gameStarted().call();
+                const gameOver = await contract.methods.gameOver().call();
+                const currentPlayerAddr = await contract.methods.currentPlayer().call();
+                const player1Addr = await contract.methods.player1().call();
+                const player2Addr = await contract.methods.player2().call();
+                
+                // Determine if current user is player1 or player2
+                isPlayer1 = player1Addr.toLowerCase() === playerAccount.toLowerCase();
+                isPlayer2 = player2Addr.toLowerCase() === playerAccount.toLowerCase();
+                
+                // Update player info displays
+                document.getElementById("player1Addr").textContent = 
+                    player1Addr ? `${player1Addr.substring(0,6)}...${player1Addr.substring(38)}` : "Not joined";
+                document.getElementById("player2Addr").textContent = 
+                    player2Addr ? `${player2Addr.substring(0,6)}...${player2Addr.substring(38)}` : "Not joined";
+                
+                // Highlight active player
+                document.getElementById("player1Info").classList.remove("active");
+                document.getElementById("player2Info").classList.remove("active");
+                
+                if (!gameOver && gameStarted) {
+                    if (currentPlayerAddr === player1Addr) {
+                        document.getElementById("player1Info").classList.add("active");
+                    } else if (currentPlayerAddr === player2Addr) {
+                        document.getElementById("player2Info").classList.add("active");
+                    }
+                }
+
+                // Update status message
+                let statusMessage = "";
+                let statusClass = "";
+                let turnInfo = "";
+                
+                if (!gameStarted) {
+                    statusMessage = "Waiting for players to join";
+                    turnInfo = "Start the game by joining with 0.001 ETH";
+                } else if (gameOver) {
+                    statusMessage = "Game finished";
+                    statusClass = "";
+                    turnInfo = "Game has ended";
+                } else {
+                    const isCurrentPlayer = currentPlayerAddr.toLowerCase() === playerAccount.toLowerCase();
+                    
+                    if (isCurrentPlayer) {
+                        statusMessage = "YOUR TURN - Make a move!";
+                        statusClass = "active";
+                        turnInfo = "It's your turn to play";
+                    } else {
+                        statusMessage = "OPPONENT'S TURN - Waiting...";
+                        statusClass = "opponent";
+                        turnInfo = "Waiting for opponent to make a move";
+                    }
+                }
+                
+                document.getElementById("status").innerText = statusMessage;
+                document.getElementById("status").className = statusClass;
+                document.getElementById("turnInfo").innerText = turnInfo;
+
+                // Show/hide withdraw button
+                const canWithdraw = !gameStarted && player1Addr.toLowerCase() === playerAccount.toLowerCase() && 
+                                   player2Addr === '0x0000000000000000000000000000000000000000';
+                document.getElementById("withdrawBtn").style.display = canWithdraw ? "block" : "none";
+                
+                // Update board
+                await renderBoard();
+            } catch (error) {
+                console.error("Error updating game:", error);
+                document.getElementById("status").innerText = "Connection error: " + error.message;
+            }
+        }
+
+        async function renderBoard() {
+            if (!contract) return;
+            
+            try {
+                const board = await contract.methods.getBoard().call();
+                const table = document.getElementById("board");
+                table.innerHTML = "";
+                
+                const gameStarted = await contract.methods.gameStarted().call();
+                const gameOver = await contract.methods.gameOver().call();
+                const currentPlayerAddr = await contract.methods.currentPlayer().call();
+                const isCurrentPlayer = currentPlayerAddr.toLowerCase() === playerAccount.toLowerCase();
+                
+                for (let i = 0; i < 3; i++) {
+                    const tr = document.createElement("tr");
+                    for (let j = 0; j < 3; j++) {
+                        const td = document.createElement("td");
+                        const cellValue = board[i][j];
+                        
+                        // Set cell content
+                        if (cellValue == 1) {
+                            td.innerText = 'X';
+                            td.className = 'x';
+                        } else if (cellValue == 2) {
+                            td.innerText = 'O';
+                            td.className = 'o';
+                        }
+                        
+                        // Determine if cell should be active
+                        const isDisabled = gameOver || 
+                                          !gameStarted || 
+                                          !isCurrentPlayer || 
+                                          cellValue != 0;
+                        
+                        if (isDisabled) {
+                            td.classList.add("disabled");
+                        } else {
+                            td.onclick = () => makeMove(i, j);
+                        }
+                        
+                        tr.appendChild(td);
+                    }
+                    table.appendChild(tr);
+                }
+            } catch (error) {
+                console.error("Error rendering board:", error);
+            }
+        }
+
+        async function makeMove(x, y) {
+            try {
+                document.getElementById("status").innerText = "Processing move...";
+                await contract.methods.makeMove(x, y).send({ from: playerAccount });
+                await updateGameStatus();
+            } catch (error) {
+                document.getElementById("status").innerText = "Move error: " + error.message;
+                console.error(error);
+            }
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
