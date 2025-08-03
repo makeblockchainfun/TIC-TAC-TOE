@@ -5,9 +5,9 @@ This is a simple **Tic Tac Toe game powered by Ethereum smart contracts**. Two p
 ## ✨ Features
 - ✅ **Decentralized**: Runs entirely on the Ethereum blockchain.
 - 🎯 **Game Mechanics**:
-  - Two players each deposit **0.1 ETH** to start.
+  - Two players each deposit **0.001 ETH** to start.
   - Players take turns marking the 3×3 board.
-  - Winner receives the **0.2 ETH prize**.
+  - Winner receives the **0.002 ETH prize**.
   - If the game ends in a draw, players can withdraw their deposits.
 - 🖥️ **Frontend**:
   - Built in plain HTML + JavaScript (no frameworks required).
